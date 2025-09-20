@@ -3,6 +3,7 @@ package com.accounting.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.TableField;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -18,6 +19,7 @@ public class MealRecord {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     
+    @TableField("record_date")
     private LocalDate recordDate;
     
     private BigDecimal breakfast;
