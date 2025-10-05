@@ -19,6 +19,9 @@ public class MealRecord {
     @TableId(value = "id", type = IdType.AUTO)
     private Long id;
     
+    @TableField("user_id")
+    private Long userId;
+    
     @TableField("record_date")
     private LocalDate recordDate;
     
@@ -32,9 +35,11 @@ public class MealRecord {
     
     private BigDecimal drink;
     
-    private BigDecimal other;
-    
     private BigDecimal total;
+    
+    // 动态餐饮项目，以JSON格式存储
+    @TableField("custom_items")
+    private String customItems;
     
     private LocalDateTime createTime;
     

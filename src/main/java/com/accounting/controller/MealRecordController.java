@@ -1,12 +1,15 @@
 package com.accounting.controller;
 
 import com.accounting.dto.MealRecordRequest;
+import com.accounting.dto.DeleteItemsRequest;
 import com.accounting.entity.MealRecord;
 import com.accounting.service.MealRecordService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +19,21 @@ import java.util.Map;
 @CrossOrigin(origins = "*")
 public class MealRecordController {
 
+    private static final Logger logger = LoggerFactory.getLogger(MealRecordController.class);
+    
+    /**
+     * 测试端点
+     */
+    @GetMapping("/test")
+    public ResponseEntity<Map<String, Object>> test() {
+        logger.info("收到测试请求");
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "后端服务正常运行");
+        response.put("timestamp", System.currentTimeMillis());
+        return ResponseEntity.ok(response);
+    }
+
     @Autowired
     private MealRecordService mealRecordService;
 
@@ -24,8 +42,41 @@ public class MealRecordController {
      */
     @PostMapping("/save")
     public ResponseEntity<Map<String, Object>> saveMealRecord(@RequestBody MealRecordRequest request) {
+        logger.info("收到保存餐饮记录请求: {}", request);
+        logger.info("请求详情 - 日期: {}, 早饭: {}, 午饭: {}, 晚饭: {}, 零食: {}, 饮料: {}, 动态项目: {}", 
+            request.getRecordDate(), request.getBreakfast(), request.getLunch(), 
+            request.getDinner(), request.getSnack(), request.getDrink(), request.getCustomItems());
+        
         try {
+            // 验证请求数据
+            if (request == null) {
+                throw new IllegalArgumentException("请求数据不能为空");
+            }
+            
+            if (request.getRecordDate() == null) {
+                throw new IllegalArgumentException("记录日期不能为空");
+            }
+            
+            // 验证金额不能为负数
+            if (request.getBreakfast() != null && request.getBreakfast().compareTo(BigDecimal.ZERO) < 0 ||
+                request.getLunch() != null && request.getLunch().compareTo(BigDecimal.ZERO) < 0 ||
+                request.getDinner() != null && request.getDinner().compareTo(BigDecimal.ZERO) < 0 ||
+                request.getSnack() != null && request.getSnack().compareTo(BigDecimal.ZERO) < 0 ||
+                request.getDrink() != null && request.getDrink().compareTo(BigDecimal.ZERO) < 0) {
+                throw new IllegalArgumentException("金额不能为负数");
+            }
+            
+            // 验证动态项目金额不能为负数
+            if (request.getCustomItems() != null) {
+                for (Map.Entry<String, BigDecimal> entry : request.getCustomItems().entrySet()) {
+                    if (entry.getValue() != null && entry.getValue().compareTo(BigDecimal.ZERO) < 0) {
+                        throw new IllegalArgumentException("动态项目 \"" + entry.getKey() + "\" 的金额不能为负数");
+                    }
+                }
+            }
+            
             MealRecord record = mealRecordService.saveOrUpdate(request);
+            logger.info("餐饮记录保存成功: ID={}, 日期={}", record.getId(), record.getRecordDate());
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -33,12 +84,20 @@ public class MealRecordController {
             response.put("data", record);
             
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("保存餐饮记录参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
+            logger.error("保存餐饮记录失败", e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "保存失败: " + e.getMessage());
             
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 
@@ -47,7 +106,14 @@ public class MealRecordController {
      */
     @GetMapping("/get/{date}")
     public ResponseEntity<Map<String, Object>> getMealRecord(@PathVariable String date) {
+        logger.info("收到获取餐饮记录请求: 日期={}", date);
+        
         try {
+            // 验证日期格式
+            if (date == null || date.trim().isEmpty()) {
+                throw new IllegalArgumentException("日期不能为空");
+            }
+            
             LocalDate recordDate = LocalDate.parse(date);
             MealRecord record = mealRecordService.getByDate(recordDate);
             
@@ -55,13 +121,27 @@ public class MealRecordController {
             response.put("success", true);
             response.put("data", record);
             
+            if (record != null) {
+                logger.info("找到餐饮记录: ID={}, 日期={}", record.getId(), record.getRecordDate());
+            } else {
+                logger.info("未找到日期为 {} 的餐饮记录", date);
+            }
+            
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("获取餐饮记录参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
+            logger.error("获取餐饮记录失败", e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "获取失败: " + e.getMessage());
             
-            return ResponseEntity.badRequest().body(response);
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 
@@ -70,7 +150,14 @@ public class MealRecordController {
      */
     @DeleteMapping("/delete/{date}")
     public ResponseEntity<Map<String, Object>> deleteMealRecord(@PathVariable String date) {
+        logger.info("收到删除餐饮记录请求: 日期={}", date);
+        
         try {
+            // 验证日期格式
+            if (date == null || date.trim().isEmpty()) {
+                throw new IllegalArgumentException("日期不能为空");
+            }
+            
             LocalDate recordDate = LocalDate.parse(date);
             boolean deleted = mealRecordService.deleteByDate(recordDate);
             
@@ -78,13 +165,121 @@ public class MealRecordController {
             response.put("success", deleted);
             response.put("message", deleted ? "删除成功" : "记录不存在");
             
+            if (deleted) {
+                logger.info("餐饮记录删除成功: 日期={}", date);
+            } else {
+                logger.info("未找到要删除的餐饮记录: 日期={}", date);
+            }
+            
             return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("删除餐饮记录参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
+            logger.error("删除餐饮记录失败", e);
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "删除失败: " + e.getMessage());
             
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 删除指定日期的动态项目
+     */
+    @PostMapping("/delete-items/{date}")
+    public ResponseEntity<Map<String, Object>> deleteCustomItems(@PathVariable String date, @RequestBody DeleteItemsRequest request) {
+        logger.info("收到删除动态项目请求: 日期={}, 项目={}", date, request.getItemNames());
+        
+        try {
+            // 验证日期格式
+            if (date == null || date.trim().isEmpty()) {
+                throw new IllegalArgumentException("日期不能为空");
+            }
+            
+            LocalDate recordDate = LocalDate.parse(date);
+            
+            // 获取要删除的项目名称列表
+            java.util.List<String> itemNames = request.getItemNames();
+            if (itemNames == null || itemNames.isEmpty()) {
+                throw new IllegalArgumentException("要删除的项目名称不能为空");
+            }
+            
+            boolean updated = mealRecordService.deleteCustomItems(recordDate, itemNames);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", updated);
+            response.put("message", updated ? "动态项目删除成功" : "记录不存在或项目不存在");
+            
+            if (updated) {
+                logger.info("动态项目删除成功: 日期={}, 项目={}", date, itemNames);
+            } else {
+                logger.info("未找到要删除的动态项目: 日期={}, 项目={}", date, itemNames);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("删除动态项目参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
             return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            logger.error("删除动态项目失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "删除失败: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 完全清空指定日期的所有数据
+     */
+    @PostMapping("/clear-all/{date}")
+    public ResponseEntity<Map<String, Object>> clearAllData(@PathVariable String date) {
+        logger.info("收到清空所有数据请求: 日期={}", date);
+        
+        try {
+            if (date == null || date.trim().isEmpty()) {
+                throw new IllegalArgumentException("日期不能为空");
+            }
+            
+            LocalDate recordDate = LocalDate.parse(date);
+            boolean cleared = mealRecordService.clearAllData(recordDate);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", cleared);
+            response.put("message", cleared ? "所有数据已清空" : "清空失败");
+            
+            if (cleared) {
+                logger.info("所有数据清空成功: 日期={}", date);
+            } else {
+                logger.info("清空失败: 日期={}", date);
+            }
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("清空数据参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            logger.error("清空数据失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "清空失败: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 }

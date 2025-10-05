@@ -5,6 +5,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Map;
 
 @Data
 public class MealRecordRequest {
@@ -22,7 +23,8 @@ public class MealRecordRequest {
     
     private BigDecimal drink;
     
-    private BigDecimal other;
+    // 动态餐饮项目
+    private Map<String, BigDecimal> customItems;
 }
 
 @Data
@@ -41,8 +43,6 @@ class MealRecordResponse {
     private BigDecimal snack;
     
     private BigDecimal drink;
-    
-    private BigDecimal other;
     
     private BigDecimal total;
     
