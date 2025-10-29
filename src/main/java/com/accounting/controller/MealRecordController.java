@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -278,6 +279,109 @@ public class MealRecordController {
             Map<String, Object> response = new HashMap<>();
             response.put("success", false);
             response.put("message", "清空失败: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 获取指定月份有记录的日期列表
+     */
+    @GetMapping("/record-dates/{year}/{month}")
+    public ResponseEntity<Map<String, Object>> getRecordDates(@PathVariable int year, @PathVariable int month) {
+        logger.info("获取记录日期请求: 年={}, 月={}", year, month);
+        
+        try {
+            List<String> recordDates = mealRecordService.getRecordDates(year, month);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", recordDates);
+            response.put("message", "获取成功");
+            
+            logger.info("获取记录日期成功: 年={}, 月={}, 数量={}", year, month, recordDates.size());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("获取记录日期失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "获取失败: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 获取用户统计概览
+     */
+    @GetMapping("/user-statistics")
+    public ResponseEntity<Map<String, Object>> getUserStatistics() {
+        logger.info("收到获取用户统计概览请求");
+        
+        try {
+            Map<String, Object> statistics = mealRecordService.getUserStatistics();
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", statistics);
+            response.put("message", "获取成功");
+            
+            logger.info("获取用户统计概览成功: {}", statistics);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("获取用户统计概览失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "获取失败: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 获取指定日期范围的餐饮记录（用于统计）
+     */
+    @GetMapping("/statistics")
+    public ResponseEntity<Map<String, Object>> getMealRecordsByDateRange(
+            @RequestParam String startDate, 
+            @RequestParam String endDate) {
+        logger.info("收到获取统计数据请求: 开始日期={}, 结束日期={}", startDate, endDate);
+        
+        try {
+            // 验证日期格式
+            if (startDate == null || startDate.trim().isEmpty() || 
+                endDate == null || endDate.trim().isEmpty()) {
+                throw new IllegalArgumentException("开始日期和结束日期不能为空");
+            }
+            
+            LocalDate start = LocalDate.parse(startDate);
+            LocalDate end = LocalDate.parse(endDate);
+            
+            if (start.isAfter(end)) {
+                throw new IllegalArgumentException("开始日期不能晚于结束日期");
+            }
+            
+            List<MealRecord> records = mealRecordService.getRecordsByDateRange(start, end);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", records);
+            response.put("message", "获取成功");
+            
+            logger.info("获取统计数据成功: 开始日期={}, 结束日期={}, 记录数量={}", startDate, endDate, records.size());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            logger.warn("获取统计数据参数错误: {}", e.getMessage());
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "参数错误: " + e.getMessage());
+            
+            return ResponseEntity.badRequest().body(response);
+        } catch (Exception e) {
+            logger.error("获取统计数据失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "获取失败: " + e.getMessage());
             
             return ResponseEntity.internalServerError().body(response);
         }

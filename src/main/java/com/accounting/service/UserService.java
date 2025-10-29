@@ -41,12 +41,7 @@ public class UserService {
             }
             
             // 创建新用户
-            User user = new User();
-            user.setUsername(username);
-            user.setPassword(passwordEncoder.encode(password)); // 加密密码
-            user.setNickname(username); // 默认昵称为用户名
-            user.setCreatedAt(java.time.LocalDateTime.now());
-            user.setUpdatedAt(java.time.LocalDateTime.now());
+            User user = new User(username, passwordEncoder.encode(password)); // 使用构造函数，自动设置所有字段
             
             int insertResult = userMapper.insert(user);
             

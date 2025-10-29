@@ -20,8 +20,12 @@ public class JwtInterceptor implements HandlerInterceptor {
     
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        System.out.println("=== JWT拦截器调试 ===");
+        System.out.println("请求URI: " + request.getRequestURI());
+        
         // 获取Authorization头
         String authHeader = request.getHeader("Authorization");
+        System.out.println("Authorization头: " + authHeader);
         
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
@@ -36,6 +40,10 @@ public class JwtInterceptor implements HandlerInterceptor {
                     // 设置用户上下文
                     UserContext.setUserId(userId);
                     UserContext.setUsername(username);
+                    
+                    System.out.println("用户ID: " + userId);
+                    System.out.println("用户名: " + username);
+                    System.out.println("JWT验证成功，放行");
                     
                     return true;
                 } catch (Exception e) {

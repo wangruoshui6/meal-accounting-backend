@@ -33,8 +33,7 @@ public class MealRecordService {
         Long currentUserId = UserContext.getUserId();
         if (currentUserId == null) {
             throw new RuntimeException("用户未登录");
-        }
-        
+        } 
         // 检查是否已存在该日期的记录（仅限当前用户）
         QueryWrapper<MealRecord> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("record_date", request.getRecordDate())
@@ -300,6 +299,131 @@ public class MealRecordService {
             System.err.println("清空数据失败: " + e.getMessage());
             e.printStackTrace();
             return false;
+        }
+    }
+    
+    /**
+     * 获取指定月份有记录的日期列表
+     */
+    public List<String> getRecordDates(int year, int month) {
+        // 获取当前用户ID
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("用户未登录");
+        }
+        
+        System.out.println("=== 获取记录日期 ===");
+        System.out.println("年: " + year + ", 月: " + month);
+        System.out.println("用户ID: " + currentUserId);
+        
+        try {
+            // 构建查询条件：指定年月的记录
+            QueryWrapper<MealRecord> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", currentUserId)
+                       .apply("YEAR(record_date) = {0}", year)
+                       .apply("MONTH(record_date) = {0}", month)
+                       .select("record_date");
+            
+            List<MealRecord> records = mealRecordMapper.selectList(queryWrapper);
+            
+            // 提取日期并格式化为字符串
+            List<String> recordDates = records.stream()
+                .map(record -> record.getRecordDate().toString())
+                .collect(java.util.stream.Collectors.toList());
+            
+            System.out.println("找到记录日期: " + recordDates);
+            return recordDates;
+            
+        } catch (Exception e) {
+            System.err.println("获取记录日期失败: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("获取记录日期失败", e);
+        }
+    }
+
+    /**
+     * 获取用户统计概览
+     */
+    public Map<String, Object> getUserStatistics() {
+        // 获取当前用户ID
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("用户未登录");
+        }
+        
+        System.out.println("=== 获取用户统计概览 ===");
+        System.out.println("用户ID: " + currentUserId);
+        
+        try {
+            // 查询用户所有记录
+            QueryWrapper<MealRecord> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", currentUserId)
+                       .select("record_date", "total");
+            
+            List<MealRecord> records = mealRecordMapper.selectList(queryWrapper);
+            
+            // 计算统计数据
+            int totalDays = records.size();
+            BigDecimal totalAmount = BigDecimal.ZERO;
+            
+            for (MealRecord record : records) {
+                if (record.getTotal() != null) {
+                    totalAmount = totalAmount.add(record.getTotal());
+                }
+            }
+            
+            // 计算日均消费
+            BigDecimal avgDaily = totalDays > 0 ? 
+                totalAmount.divide(BigDecimal.valueOf(totalDays), 2, java.math.RoundingMode.HALF_UP) : 
+                BigDecimal.ZERO;
+            
+            Map<String, Object> statistics = new HashMap<>();
+            statistics.put("totalDays", totalDays);
+            statistics.put("totalAmount", totalAmount);
+            statistics.put("avgDaily", avgDaily);
+            
+            System.out.println("统计结果: " + statistics);
+            return statistics;
+            
+        } catch (Exception e) {
+            System.err.println("获取用户统计概览失败: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("获取用户统计概览失败", e);
+        }
+    }
+
+    /**
+     * 获取指定日期范围的餐饮记录（用于统计）
+     */
+    public List<MealRecord> getRecordsByDateRange(LocalDate startDate, LocalDate endDate) {
+        // 获取当前用户ID
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("用户未登录");
+        }
+        
+        System.out.println("=== 获取日期范围数据 ===");
+        System.out.println("开始日期: " + startDate);
+        System.out.println("结束日期: " + endDate);
+        System.out.println("用户ID: " + currentUserId);
+        
+        try {
+            // 构建查询条件：指定日期范围内的记录
+            QueryWrapper<MealRecord> queryWrapper = new QueryWrapper<>();
+            queryWrapper.eq("user_id", currentUserId)
+                       .ge("record_date", startDate)
+                       .le("record_date", endDate)
+                       .orderByAsc("record_date");
+            
+            List<MealRecord> records = mealRecordMapper.selectList(queryWrapper);
+            
+            System.out.println("找到记录数量: " + records.size());
+            return records;
+            
+        } catch (Exception e) {
+            System.err.println("获取日期范围数据失败: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("获取日期范围数据失败", e);
         }
     }
     

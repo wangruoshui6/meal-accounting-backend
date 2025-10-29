@@ -10,7 +10,7 @@ import java.util.Map;
 @Data
 public class MealRecordRequest {
     
-    @JsonProperty("date")
+    @JsonProperty("recordDate")
     private LocalDate recordDate;
     
     private BigDecimal breakfast;
