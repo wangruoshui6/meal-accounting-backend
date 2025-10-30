@@ -1,6 +1,8 @@
 package com.accounting.controller;
 
 import com.accounting.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,7 +13,9 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 @CrossOrigin(origins = "*")
 public class AuthController {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     private UserService userService;
     
@@ -90,6 +94,37 @@ public class AuthController {
             return ResponseEntity.ok(result);
         } else {
             return ResponseEntity.badRequest().body(result);
+        }
+    }
+    
+    /**
+     * 用户登出
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, Object>> logout(@RequestHeader("Authorization") String token) {
+        if (token == null || !token.startsWith("Bearer ")) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "无效的token格式"
+            ));
+        }
+        
+        String actualToken = token.substring(7); // 移除 "Bearer " 前缀
+        
+        try {
+            // 删除token缓存
+            userService.getJwtUtil().logout(actualToken);
+            
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "message", "登出成功"
+            ));
+        } catch (Exception e) {
+            logger.error("登出失败", e);
+            return ResponseEntity.internalServerError().body(Map.of(
+                "success", false,
+                "message", "登出失败: " + e.getMessage()
+            ));
         }
     }
     

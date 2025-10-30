@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -13,6 +14,9 @@ import java.util.Map;
 
 @Component
 public class JwtUtil {
+    
+    @Autowired
+    private com.accounting.service.JwtCacheService jwtCacheService;
     
     private static final String SECRET = "mySecretKey123456789012345678901234567890";
     private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24小时
@@ -28,7 +32,12 @@ public class JwtUtil {
         Map<String, Object> claims = new HashMap<>();
         claims.put("username", username);
         claims.put("userId", userId);
-        return createToken(claims, username);
+        String token = createToken(claims, username);
+        
+        // 缓存token
+        jwtCacheService.cacheToken(token, userId, username);
+        
+        return token;
     }
     
     /**
@@ -106,8 +115,29 @@ public class JwtUtil {
      */
     public Boolean validateToken(String token) {
         try {
-            return !isTokenExpired(token);
+            // 先检查缓存
+            if (jwtCacheService.isTokenCached(token)) {
+                // 刷新缓存时间
+                jwtCacheService.refreshTokenCache(token);
+                System.out.println("JWT token验证成功（缓存）: " + token);
+                return true;
+            }
+            
+            // 缓存中没有，进行常规验证
+            boolean isValid = !isTokenExpired(token);
+            if (isValid) {
+                // 验证成功，重新缓存
+                Long userId = extractUserId(token);
+                String username = extractUsername(token);
+                jwtCacheService.cacheToken(token, userId, username);
+                System.out.println("JWT token验证成功（重新缓存）: " + token);
+            } else {
+                System.out.println("JWT token验证失败: " + token);
+            }
+            
+            return isValid;
         } catch (Exception e) {
+            System.out.println("JWT token验证异常: " + e.getMessage());
             return false;
         }
     }
@@ -124,5 +154,21 @@ public class JwtUtil {
      */
     public String extractUsername(String token) {
         return getUsernameFromToken(token);
+    }
+    
+    /**
+     * 登出时删除token缓存
+     */
+    public void logout(String token) {
+        jwtCacheService.removeToken(token);
+        System.out.println("用户登出，token已从缓存删除: " + token);
+    }
+    
+    /**
+     * 强制用户登出（删除用户所有token）
+     */
+    public void forceLogout(Long userId) {
+        jwtCacheService.removeUserTokens(userId);
+        System.out.println("强制用户登出，所有token已从缓存删除: " + userId);
     }
 }
