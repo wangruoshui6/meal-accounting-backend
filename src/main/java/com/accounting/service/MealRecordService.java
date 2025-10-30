@@ -379,6 +379,55 @@ public class MealRecordService {
     }
 
     /**
+     * 获取用户年度每月统计
+     */
+    public Map<String, Object> getYearStatistics(Integer year) {
+        Long currentUserId = UserContext.getUserId();
+        if (currentUserId == null) {
+            throw new RuntimeException("用户未登录");
+        }
+
+        if (year == null) {
+            year = java.time.LocalDate.now().getYear();
+        }
+        // 查询一年内所有记录
+        QueryWrapper<MealRecord> queryWrapper = new QueryWrapper<>();
+        queryWrapper.eq("user_id", currentUserId)
+            .ge("record_date", year + "-01-01")
+            .le("record_date", year + "-12-31");
+        List<MealRecord> records = mealRecordMapper.selectList(queryWrapper);
+
+        // 初始化1~12月统计
+        List<Map<String, Object>> months = new java.util.ArrayList<>();
+        BigDecimal yearTotal = BigDecimal.ZERO;
+        for (int m = 1; m <= 12; m++) {
+            BigDecimal total = BigDecimal.ZERO;
+            int days = 0;
+            for (MealRecord r : records) {
+                if (r.getRecordDate() != null && r.getRecordDate().getYear() == year && r.getRecordDate().getMonthValue() == m) {
+                    if (r.getTotal() != null) {
+                        total = total.add(r.getTotal());
+                    }
+                    days++;
+                }
+            }
+            Map<String, Object> monthStat = new java.util.HashMap<>();
+            monthStat.put("month", m);
+            monthStat.put("total", total);
+            monthStat.put("days", days);
+            BigDecimal avg = days > 0 ? total.divide(BigDecimal.valueOf(days), 2, java.math.RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            monthStat.put("avg", avg);
+            months.add(monthStat);
+            yearTotal = yearTotal.add(total);
+        }
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("year", year);
+        result.put("months", months);
+        result.put("yearTotal", yearTotal);
+        return result;
+    }
+
+    /**
      * 获取指定日期范围的餐饮记录（用于统计）
      */
     public List<MealRecord> getRecordsByDateRange(LocalDate startDate, LocalDate endDate) {

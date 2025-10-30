@@ -386,5 +386,27 @@ public class MealRecordController {
             return ResponseEntity.internalServerError().body(response);
         }
     }
+
+    /**
+     * 获取用户某年消费年度账单统计
+     */
+    @GetMapping("/year-statistics")
+    public ResponseEntity<Map<String, Object>> getYearStatistics(@RequestParam(required = false) Integer year) {
+        logger.info("收到获取年度账单统计请求: year={}", year);
+        try {
+            Map<String, Object> data = mealRecordService.getYearStatistics(year);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("data", data);
+            response.put("message", "获取成功");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            logger.error("获取年度账单统计失败", e);
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", false);
+            response.put("message", "获取失败: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
 }
 
