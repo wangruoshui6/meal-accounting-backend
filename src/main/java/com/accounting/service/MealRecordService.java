@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,9 @@ public class MealRecordService {
 
     @Autowired
     private com.accounting.mapper.MealRecordMapper mealRecordMapper;
+    
+    @Autowired
+    private RedisTemplate<String, Object> redisTemplate;
     
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -143,9 +147,6 @@ public class MealRecordService {
             throw new RuntimeException("用户未登录");
         }
         
-        System.out.println("=== 强制删除方法 ===");
-        System.out.println("日期: " + date);
-        System.out.println("要删除的项目: " + itemNames);
         
         try {
             // 先查询记录（仅限当前用户）
@@ -155,12 +156,8 @@ public class MealRecordService {
             MealRecord record = mealRecordMapper.selectOne(queryWrapper);
             
             if (record == null) {
-                System.out.println("记录不存在");
                 return false;
             }
-            
-            System.out.println("找到记录ID: " + record.getId());
-            System.out.println("删除前custom_items: " + record.getCustomItems());
             
             // 解析现有动态项目
             Map<String, BigDecimal> customItems = new HashMap<>();
@@ -169,11 +166,9 @@ public class MealRecordService {
                     customItems = objectMapper.readValue(record.getCustomItems(), 
                         objectMapper.getTypeFactory().constructMapType(Map.class, String.class, BigDecimal.class));
                 } catch (Exception e) {
-                    System.out.println("解析custom_items失败: " + e.getMessage());
+                    // 解析失败，忽略
                 }
             }
-            
-            System.out.println("删除前动态项目: " + customItems);
             
             // 删除指定项目
             boolean hasChanges = false;
@@ -181,25 +176,20 @@ public class MealRecordService {
                 if (customItems.containsKey(itemName)) {
                     customItems.remove(itemName);
                     hasChanges = true;
-                    System.out.println("删除项目: " + itemName);
                 }
             }
-            
-            System.out.println("删除后动态项目: " + customItems);
             
             // 更新记录
             if (customItems.isEmpty()) {
                 record.setCustomItems(null);
-                System.out.println("设置为NULL");
             } else {
                 String updatedJson = objectMapper.writeValueAsString(customItems);
                 record.setCustomItems(updatedJson);
-                System.out.println("更新为: " + updatedJson);
             }
             
-            // 如果没有变化，也要更新数据库
+            // 如果没有找到要删除的项目，直接返回失败
             if (!hasChanges) {
-                System.out.println("没有找到要删除的项目，但继续更新数据库");
+                return false;
             }
             
             // 重新计算总计
@@ -222,24 +212,20 @@ public class MealRecordService {
             record.setTotal(total);
             record.setUpdateTime(LocalDateTime.now());
             
-            System.out.println("准备更新数据库");
-            System.out.println("新的custom_items: " + record.getCustomItems());
-            System.out.println("新的total: " + record.getTotal());
-            
-            // 强制更新
+            // 更新数据库
             int result = mealRecordMapper.updateById(record);
-            System.out.println("数据库更新结果: " + result);
             
-            // 立即验证
-            MealRecord verifyRecord = mealRecordMapper.selectById(record.getId());
-            System.out.println("验证结果 - custom_items: " + verifyRecord.getCustomItems());
-            System.out.println("验证结果 - total: " + verifyRecord.getTotal());
+            // 清理用户设置的Redis缓存，避免刷新后重新加载旧数据
+            try {
+                String cacheKey = "user_setting:" + currentUserId + ":default_meal_items";
+                redisTemplate.delete(cacheKey);
+            } catch (Exception e) {
+                // 清理缓存失败，不影响主流程
+            }
             
             return result > 0;
             
         } catch (Exception e) {
-            System.err.println("删除失败: " + e.getMessage());
-            e.printStackTrace();
             return false;
         }
     }

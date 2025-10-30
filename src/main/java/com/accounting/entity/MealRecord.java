@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -37,7 +38,7 @@ public class MealRecord {
     private BigDecimal total;
     
     // 动态餐饮项目，以JSON格式存储
-    @TableField("custom_items")
+    @TableField(value = "custom_items", updateStrategy = FieldStrategy.IGNORED)
     private String customItems;
     
     private LocalDateTime createTime;
