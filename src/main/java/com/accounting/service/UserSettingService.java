@@ -118,7 +118,6 @@ public class UserSettingService {
                 newSetting.setUpdatedAt(LocalDateTime.now());
                 success = userSettingMapper.insert(newSetting) > 0;
             }
-            
             // 保存成功后，更新Redis缓存
             if (success) {
                 try {

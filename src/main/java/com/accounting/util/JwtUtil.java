@@ -19,7 +19,7 @@ public class JwtUtil {
     private com.accounting.service.JwtCacheService jwtCacheService;
     
     private static final String SECRET = "mySecretKey123456789012345678901234567890";
-    private static final long EXPIRATION_TIME = 24 * 60 * 60 * 1000; // 24小时
+    private static final long EXPIRATION_TIME = 30L * 24 * 60 * 60 * 1000; // 30天
     
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(SECRET.getBytes());

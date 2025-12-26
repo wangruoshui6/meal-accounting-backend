@@ -14,7 +14,7 @@ public class JwtCacheService {
 
     private static final String JWT_TOKEN_PREFIX = "jwt_token:";
     private static final String USER_TOKEN_PREFIX = "user_token:";
-    private static final long TOKEN_CACHE_TIME = 24; // 24小时
+    private static final long TOKEN_CACHE_TIME = 24 ; // 24小时
 
     /**
      * 缓存JWT token

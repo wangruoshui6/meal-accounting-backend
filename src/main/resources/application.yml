@@ -47,5 +47,24 @@ logging:
 
 jwt:
   secret: mySecretKey123456789012345678901234567890
-  expiration: 86400
+  expiration: 2592000  # 30天（30 * 24 * 60 * 60 = 2592000 秒）
+
+# 阿里云百炼 AI 配置
+aliyun:
+  bailian:
+    # API Key - 从环境变量读取，如果没有则使用默认值（请在生产环境使用环境变量）
+    # 方式1：使用环境变量（推荐）
+    api-key: ${BAILIAN_API_KEY:sk-9a347114b9a54885a5e8008cab3203bd}
+    # 方式2：直接配置（不推荐，仅用于开发测试）
+    # api-key: sk-9a347114b9a54885a5e8008cab3203bd
+    # API 端点
+    api-url: https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation
+    # 模型名称（通义千问）
+    model: qwen-turbo
+    # 请求超时时间（毫秒）
+    timeout: 30000
+    # 最大 token 数
+    max-tokens: 2000
+    # 温度参数（0-1，控制随机性）
+    temperature: 0.7
 
